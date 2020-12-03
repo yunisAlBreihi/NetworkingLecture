@@ -47,16 +47,10 @@ public:
 		int32 GetPing() const;
 
 	UFUNCTION(Server, Unreliable)
-	void Server_SendLocation(const FVector& LocationToSend);
+		void Server_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime);
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_SendLocation(const FVector& LocationToSend);
-
-	UFUNCTION(Server, Unreliable)
-		void Server_SendRotation(const FRotator& RotationToSend);
-
-	UFUNCTION(NetMulticast, Unreliable)
-		void Multicast_SendRotation(const FRotator& RotationToSend);
+		void Multicast_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime);
 
 private:
 	void Handle_Accelerate(float Value);
@@ -69,6 +63,16 @@ private:
 
 	float MovementVelocity = 0.0f;
 	float Yaw = 0.0f;
+
+	float ClientAlpha = 0.0f;
+	FRotator LastRotation = FRotator::ZeroRotator;
+	FVector LastLocation = FVector::ZeroVector;
+	FRotator CurrentRotation = FRotator::ZeroRotator;
+	FVector CurrentLocation = FVector::ZeroVector;
+
+	UINT32 DataIndex = 0;
+	TArray<FRotator> NextRotations;
+	TArray<FVector> NextLocations;
 
 	bool bBrake = false;
 

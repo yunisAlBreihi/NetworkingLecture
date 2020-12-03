@@ -35,14 +35,14 @@ void AFGPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 
-	MovementComponent->SetUpdatedComponent(CollisionComponent); 
+	MovementComponent->SetUpdatedComponent(CollisionComponent);
 }
 
 void AFGPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (GetPlayerState())
+	if (IsLocallyControlled())
 	{
 		const float Friction = IsBraking() ? BrakingFriction : DefaultFriction;
 		const float Alpha = FMath::Clamp(FMath::Abs(MovementVelocity / (MaxVelocity * 0.75f)), 0.0f, 1.0f);
@@ -63,8 +63,7 @@ void AFGPlayer::Tick(float DeltaTime)
 		FrameMovement.AddDelta(GetActorForwardVector() * MovementVelocity * DeltaTime);
 		MovementComponent->Move(FrameMovement);
 
-		Server_SendLocation(GetActorLocation());
-		Server_SendRotation(MovementComponent->GetFacingRotation());
+		Server_SendLocationRotation(GetActorLocation(), GetActorRotation(), DeltaTime);
 	}
 }
 
@@ -88,33 +87,53 @@ int32 AFGPlayer::GetPing() const
 	return 0;
 }
 
-void AFGPlayer::Multicast_SendRotation_Implementation(const FRotator& RotationToSend)
+void AFGPlayer::Multicast_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime)
 {
 	if (IsLocallyControlled() == false)
 	{
-		MovementComponent->SetFacingRotation(RotationToSend);
+		NextLocations.Add(LocationToSend);
+		NextRotations.Add(RotationToSend);
+
+		if (CurrentLocation == FVector::ZeroVector)
+		{
+			CurrentLocation = NextLocations[DataIndex];
+			LastLocation = CurrentLocation;
+		}
+
+		if (CurrentRotation == FRotator::ZeroRotator)
+		{
+			CurrentRotation = NextRotations[DataIndex];
+			LastRotation = CurrentRotation;
+		}
+
+		if (ClientAlpha <= 1.0f)
+		{
+			SetActorLocation(FMath::Lerp(LastLocation, CurrentLocation, ClientAlpha));
+			SetActorRotation(FMath::Lerp(LastRotation, CurrentRotation, ClientAlpha));
+		}
+
+		if (ClientAlpha >= 1.0f)
+		{
+			DataIndex++;
+
+			CurrentLocation = NextLocations[DataIndex];
+			LastLocation = CurrentLocation;
+
+			CurrentRotation = NextRotations[DataIndex];
+			LastRotation = CurrentRotation;
+
+			ClientAlpha = 0.0f;
+		}
+		ClientAlpha += DeltaTime * 20.0f;
 	}
 }
 
-void AFGPlayer::Server_SendRotation_Implementation(const FRotator& RotationToSend)
+void AFGPlayer::Server_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime)
 {
-	Multicast_SendRotation(RotationToSend);
+	Multicast_SendLocationRotation(LocationToSend, RotationToSend, DeltaTime);
 }
 
-void AFGPlayer::Multicast_SendLocation_Implementation(const FVector& LocationToSend)
-{
-	if (IsLocallyControlled() == false)
-	{
-		SetActorLocation(LocationToSend);
-	}
-}
-
-void AFGPlayer::Server_SendLocation_Implementation(const FVector& LocationToSend)
-{
-	Multicast_SendLocation(LocationToSend);
-}
-
-void AFGPlayer::Handle_Accelerate(float Value) 
+void AFGPlayer::Handle_Accelerate(float Value)
 {
 	Forward = Value;
 }
