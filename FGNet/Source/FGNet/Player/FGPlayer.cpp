@@ -41,6 +41,8 @@ void AFGPlayer::BeginPlay()
 void AFGPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	LastLocation = GetActorLocation();
+	LastRotation = GetActorRotation();
 
 	if (IsLocallyControlled())
 	{
@@ -65,6 +67,11 @@ void AFGPlayer::Tick(float DeltaTime)
 
 		Server_SendLocationRotation(GetActorLocation(), GetActorRotation(), DeltaTime);
 	}
+	else
+	{
+		SetActorLocation(FMath::VInterpTo(LastLocation, CurrentLocation, recievedDelta, 2.5f));
+		SetActorRotation(FMath::RInterpTo(LastRotation, CurrentRotation, recievedDelta, 2.5f));
+	}
 }
 
 void AFGPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -87,50 +94,19 @@ int32 AFGPlayer::GetPing() const
 	return 0;
 }
 
-void AFGPlayer::Multicast_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime)
+void AFGPlayer::Multicast_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime)
 {
 	if (IsLocallyControlled() == false)
 	{
-		NextLocations.Add(LocationToSend);
-		NextRotations.Add(RotationToSend);
-
-		if (CurrentLocation == FVector::ZeroVector)
-		{
-			CurrentLocation = NextLocations[DataIndex];
-			LastLocation = CurrentLocation;
-		}
-
-		if (CurrentRotation == FRotator::ZeroRotator)
-		{
-			CurrentRotation = NextRotations[DataIndex];
-			LastRotation = CurrentRotation;
-		}
-
-		if (ClientAlpha <= 1.0f)
-		{
-			SetActorLocation(FMath::Lerp(LastLocation, CurrentLocation, ClientAlpha));
-			SetActorRotation(FMath::Lerp(LastRotation, CurrentRotation, ClientAlpha));
-		}
-
-		if (ClientAlpha >= 1.0f)
-		{
-			DataIndex++;
-
-			CurrentLocation = NextLocations[DataIndex];
-			LastLocation = CurrentLocation;
-
-			CurrentRotation = NextRotations[DataIndex];
-			LastRotation = CurrentRotation;
-
-			ClientAlpha = 0.0f;
-		}
-		ClientAlpha += DeltaTime * 20.0f;
+		CurrentLocation = LocationToSend;
+		CurrentRotation = RotatorToSend;
+		recievedDelta = DeltaTime;
 	}
 }
 
-void AFGPlayer::Server_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotationToSend, float DeltaTime)
+void AFGPlayer::Server_SendLocationRotation_Implementation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime)
 {
-	Multicast_SendLocationRotation(LocationToSend, RotationToSend, DeltaTime);
+	Multicast_SendLocationRotation(LocationToSend, RotatorToSend, DeltaTime);
 }
 
 void AFGPlayer::Handle_Accelerate(float Value)
