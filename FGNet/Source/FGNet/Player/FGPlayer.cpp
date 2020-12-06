@@ -69,8 +69,8 @@ void AFGPlayer::Tick(float DeltaTime)
 	}
 	else
 	{
-		SetActorLocation(FMath::VInterpTo(LastLocation, CurrentLocation, recievedDelta, 2.5f));
-		SetActorRotation(FMath::RInterpTo(LastRotation, CurrentRotation, recievedDelta, 2.5f));
+		SetActorLocation(FMath::VInterpTo(LastLocation, CurrentLocation, recievedDelta, 3.0f));
+		SetActorRotation(FMath::RInterpTo(LastRotation, CurrentRotation, recievedDelta, 3.0f));
 	}
 }
 
