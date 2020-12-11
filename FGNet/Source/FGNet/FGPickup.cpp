@@ -71,7 +71,6 @@ void AFGPickup::OverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* O
 		Player->OnPickup(this);
 		bPickedUp = true;
 		SphereComponent->SetCollisionProfileName(TEXT("NoCollision"));
-		SetActorHiddenInGame(true);
 		RootComponent->SetVisibility(false, true);
 		GetWorldTimerManager().SetTimer(ReActivateHandle, this, &AFGPickup::ReActivatePickup, ReActivateTime, false);
 		SetActorTickEnabled(false);
