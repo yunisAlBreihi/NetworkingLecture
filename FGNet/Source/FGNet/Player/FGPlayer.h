@@ -50,14 +50,14 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_OnPickup(AFGPickup* Pickup);
 
-	UFUNCTION(Client, Reliable)
+	UFUNCTION(NetMulticast, Reliable)
 	void Client_OnPickupRockets(int32 PickedUpRockets);
 
 	UFUNCTION(Server, Unreliable)
 	void Server_SendYaw(float NewYaw);
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime);
+		void Multicast_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime);
 
 	void ShowDebugMenu();
 	void HideDebugMenu();
