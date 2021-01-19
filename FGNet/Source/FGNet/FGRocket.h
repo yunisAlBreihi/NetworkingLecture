@@ -4,6 +4,7 @@
 #include "FGRocket.generated.h"
 
 class UStaticMeshComponent;
+class USphereComponent;
 
 UCLASS()
 class FGNET_API AFGRocket : public AActor 
@@ -53,4 +54,8 @@ private:
 	float MovementVelocity = 1300.0f;
 
 	bool bIsFree = true;
+
+public:
+	UPROPERTY(EditAnywhere)
+	int32 Damage = 1;
 };

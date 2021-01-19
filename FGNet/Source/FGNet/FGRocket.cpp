@@ -1,8 +1,10 @@
 #include "FGRocket.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "Player/FGPlayer.h"
 
 AFGRocket::AFGRocket() 
 {
@@ -27,7 +29,7 @@ void AFGRocket::BeginPlay()
 	// Owner will be the player that instantiated this.
 	CachedCollisionQueryParams.AddIgnoredActor(GetOwner());
 
-	SetRocketVisibility(false);
+	MakeFree();
 }
 
 void AFGRocket::Tick(float DeltaTime) 
@@ -58,8 +60,12 @@ void AFGRocket::Tick(float DeltaTime)
 	const FVector EndLoc = StartLoc + FacingRotationStart * 180.0f;
 	GetWorld()->LineTraceSingleByChannel(Hit, StartLoc, EndLoc, ECC_Visibility, CachedCollisionQueryParams);
 
-	if (Hit.bBlockingHit)
+	if (Hit.bBlockingHit) {
 		Explode();
+		if (AFGPlayer* Player = Cast<AFGPlayer>(Hit.GetActor())) {
+			Player->OnTakeDamage(Damage);
+		}
+	}
 
 	if (LifeTimeElapsed < 0.0f)
 		Explode();

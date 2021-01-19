@@ -14,6 +14,7 @@
 #include "../FGRocket.h"
 #include "../FGPickup.h"
 #include <Engine/Engine.h>
+//#include <GameFramework/Actor.h>
 
 AFGPlayer::AFGPlayer()
 {
@@ -24,6 +25,10 @@ AFGPlayer::AFGPlayer()
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetupAttachment(CollisionComponent);
+
+	RocketSpawnTarget = CreateDefaultSubobject<USceneComponent>(TEXT("RocketSpawnTarget"));
+	RocketSpawnTarget->SetupAttachment(MeshComponent);
+	RocketSpawnTarget->SetRelativeLocation(FVector(0.0f, 0.0f, 140.0f));
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArmComponent->bInheritYaw = false;
@@ -49,7 +54,10 @@ void AFGPlayer::BeginPlay()
 		DebugMenuInstance->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	SpawnRockets();
+	SpawnRockets(GetActorLocation());
+
+	BP_OnHealthChanged(MaxHealth);
+	ServerMaxHealth = MaxHealth;
 }
 
 void AFGPlayer::Tick(float DeltaTime)
@@ -120,7 +128,7 @@ int32 AFGPlayer::GetPing() const
 	return 0;
 }
 
-void AFGPlayer::SpawnRockets()
+void AFGPlayer::SpawnRockets(FVector spawnPosition)
 {
 	if (HasAuthority() && RocketClass != nullptr)
 	{
@@ -136,6 +144,34 @@ void AFGPlayer::SpawnRockets()
 			AFGRocket* NewRocketInstance = GetWorld()->SpawnActor<AFGRocket>(RocketClass, GetActorLocation(), GetActorRotation(), SpawnParams);
 			RocketInstances.Add(NewRocketInstance);
 		}
+	}
+}
+
+void AFGPlayer::OnTakeDamage(int32 damage)
+{
+	if (IsLocallyControlled() == true) {
+		Server_TakeDamage(damage);
+	}
+}
+
+void AFGPlayer::Server_TakeDamage_Implementation(int32 damage)
+{
+	ServerMaxHealth -= damage;
+	Multicast_TakeDamage(damage);
+	BP_OnHealthChanged(ServerMaxHealth);
+
+	if (ServerMaxHealth <= 0) {
+		Destroy();
+	}
+}
+
+void AFGPlayer::Multicast_TakeDamage_Implementation(int32 damage)
+{
+	MaxHealth -= damage;
+	BP_OnHealthChanged(MaxHealth);
+
+	if (MaxHealth <= 0) {
+		Destroy();
 	}
 }
 
@@ -181,11 +217,11 @@ void AFGPlayer::OnPickup(AFGPickup* Pickup)
 void AFGPlayer::Server_OnPickup_Implementation(AFGPickup* Pickup)
 {
 	ServerNumRockets += Pickup->NumRockets;
-	Client_OnPickupRockets(Pickup->NumRockets);
+	Multicast_OnPickupRockets(Pickup->NumRockets);
 	BP_OnNumRocketsChanged(ServerNumRockets);
 }
 
-void AFGPlayer::Client_OnPickupRockets_Implementation(int32 PickedUpRockets)
+void AFGPlayer::Multicast_OnPickupRockets_Implementation(int32 PickedUpRockets)
 {
 	NumRockets += PickedUpRockets;
 	BP_OnNumRocketsChanged(NumRockets);
@@ -296,7 +332,6 @@ void AFGPlayer::Multicast_FireRocket_Implementation(AFGRocket* NewRocket, const 
 	if (!ensure(NewRocket != nullptr))
 		return;
 
-
 	if (GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		NewRocket->ApplyCorrection(FacingRotation.Vector());
@@ -350,7 +385,7 @@ AFGRocket* AFGPlayer::GetFreeRocket() const
 
 FVector AFGPlayer::GetRocketStartLocation() const
 {
-	const FVector StartLoc = GetActorLocation() + GetActorForwardVector() * 100.0f;
+	const FVector StartLoc = RocketSpawnTarget->GetComponentLocation() + GetActorForwardVector() * 100.0f;
 	return StartLoc;
 }
 

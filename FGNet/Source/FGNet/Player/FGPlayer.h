@@ -13,6 +13,7 @@ class UFGPlayerSettings;
 class UFGNetDebugWidget;
 class AFGRocket;
 class AFGPickup;
+class USceneComponent;
 
 UCLASS()
 class FGNET_API AFGPlayer : public APawn
@@ -51,13 +52,13 @@ public:
 	void Server_OnPickup(AFGPickup* Pickup);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void Client_OnPickupRockets(int32 PickedUpRockets);
+	void Multicast_OnPickupRockets(int32 PickedUpRockets);
 
 	UFUNCTION(Server, Unreliable)
 	void Server_SendYaw(float NewYaw);
 
 	UFUNCTION(NetMulticast, Unreliable)
-		void Multicast_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime);
+	void Multicast_SendLocationRotation(const FVector& LocationToSend, const FRotator& RotatorToSend, float DeltaTime);
 
 	void ShowDebugMenu();
 	void HideDebugMenu();
@@ -72,7 +73,18 @@ public:
 
 	void FireRocket();
 
-	void SpawnRockets();
+	void SpawnRockets(FVector spawnPosition);
+
+	UFUNCTION(Server, Reliable)
+	void Server_TakeDamage(int32 damage);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_TakeDamage(int32 damage);
+
+	void OnTakeDamage(int32 damage);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Player, meta = (DisplayName = "On Health Changed"))
+		void BP_OnHealthChanged(int32 NewNumRockets);
 
 private:
 	int32 ServerNumRockets = 0;
@@ -107,6 +119,11 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = Weapon)
 	bool bUnlimitedRockets = false;
+
+	UPROPERTY(EditAnywhere, Category = Health)
+	int32 MaxHealth = 5;
+
+	int32 ServerMaxHealth = 0;
 
 	void Handle_Accelerate(float Value);
 	void Handle_Turn(float Value);
@@ -143,6 +160,9 @@ private:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
 	UStaticMeshComponent* MeshComponent;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
+	USceneComponent* RocketSpawnTarget;
 
 	UPROPERTY(VisibleDefaultsOnly, Category = Camera)
 	USpringArmComponent* SpringArmComponent;
